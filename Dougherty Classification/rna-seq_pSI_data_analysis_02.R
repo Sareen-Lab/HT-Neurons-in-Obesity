@@ -164,6 +164,26 @@ add.bands.between <- function(dataframe, width) {
   return(new.df)
 }
 
+generate.bullseyes <- function(dataframe, plot.max.lim) {
+  plot.list <- list()
+  for(sample.pos in seq(1,length(dataframe[,1])/8)){
+    gtex.plotting.sub <- gtex.plotting[(((sample.pos-1)*8)+1):(((sample.pos-1)*8)+8),]
+    current.plot <- ggplot(data = gtex.plotting.sub, aes(x = Sample, y = Set.size, fill = p.Value)) +
+      geom_bar(width = 1, stat = "identity") + 
+      scale_y_continuous(limits = c(0,plot.max.lim)) +
+      xlab(gtex.plotting.sub[1][1,]) +
+      theme(axis.title.x = element_text(face="bold", size=14,margin =margin(0,0,15,0)),
+            axis.title.y = element_blank(), axis.ticks = element_blank(), axis.text = element_blank(),
+            plot.margin = unit(c(0,0,0,0), "cm"), axis.text = element_text(size = 12),
+            panel.background = element_rect(fill = 'white'), legend.position="none") +  
+      coord_polar() +
+      scale_fill_distiller(palette = 'YlOrRd', direction = 1, limits=c(1, 50), oob = censor, na.value = 'gray98') +
+      geom_bar(aes(y = bands), width = 1, stat = 'identity', fill = c(alpha('black',0),'black',alpha("black",0),'black',alpha("black",0),'black',alpha("black",0),'black'))
+    plot.list[[length(plot.list)+1]] <- current.plot
+  }
+  print(paste("List contains",length(plot.list),"plots"))
+  return(plot.list)
+}
 ########################################################################
 ### Data input
 ########################################################################
@@ -186,16 +206,6 @@ TPMdata <- TPMdata[row.names(metadata.sam)]  # Reorder columns to match metadata
 ### Remove unwanted column
 TPMdata <- TPMdata[-match("Reference",names(TPMdata))]
 metadata.sam <- metadata.sam[-match("Reference",row.names(metadata.sam)),]
-
-########################################################################
-### pSI determination
-########################################################################
-
-#pSI.input <- sample.data$pSI.input
-#pSI.input <- references[2:ncol(references)]
-#pSI.output <- specificity.index(pSI.input)
-#pSI.thresholds <- pSI.list(pSI.output)
-psi.counts <- pSI.count(psi.gtex)
 
 ########################################################################
 ### Save pSI tables
@@ -221,25 +231,38 @@ psi.gtex <- convertIDs(psi.gtex)
 gtex.counts <- read.csv('Z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_gtex_counts_10_03_16.csv', row.names = 1)
 
 ########################################################################
+### pSI determination
+########################################################################
+
+#pSI.input <- sample.data$pSI.input
+#pSI.input <- references[2:ncol(references)]
+#pSI.output <- specificity.index(pSI.input)
+#pSI.thresholds <- pSI.list(pSI.output)
+#psi.counts <- pSI.count(psi.gtex)
+
+########################################################################
 ### Subsetting
 ########################################################################
 
-metadata.sam.iHT <- metadata.sam[metadata.sam$Group == 'iHT',]  # Select metadata from iHT samples
-metadata.sam.iHT.f <- metadata.sam.iHT[metadata.sam.iHT$Sex =='F',]  # Select female iHT samples
-metadata.sam.HT <- na.omit(metadata.sam[metadata.sam$Type == "HT",])  # Select HT samples
-metadata.sam.HT.f <- metadata.sam.HT[metadata.sam.HT$Sex =='F',]  # Select female iHT samples
-metadata.sam.iPSC <- metadata.sam[metadata.sam$Source == "iPSC",]  # Select iPSC samples
-metadata.sam.aHT <- metadata.sam[metadata.sam$Source == "Adult",]  # Select adult HT samples
-metadata.sam.MN <- na.omit(metadata.sam[metadata.sam$Type == "MN",])  # Select HT samples
+### Subset metadata files -- Metadata files contain data used for subsetting data sets and formatting plots
+metadata.sam.HT <- na.omit(metadata.sam[metadata.sam$Type == "HT",])       # all HT samples (iPSC + adult)
+metadata.sam.iHT <- metadata.sam[metadata.sam$Group == 'iHT',]             # iPSC HT samples
+metadata.sam.aHT <- metadata.sam[metadata.sam$Source == "Adult",]          # Adult HT samples
+metadata.sam.iPSC <- metadata.sam[metadata.sam$Source == "iPSC",]          # all iPSC samples (iHT + iMN)
+metadata.sam.MN <- na.omit(metadata.sam[metadata.sam$Type == "MN",])       # Motor neuron samples
+metadata.sam.HT.f <- metadata.sam.HT[metadata.sam.HT$Sex =='F',]           # female HT samples
+metadata.sam.iHT.f <- metadata.sam.iHT[metadata.sam.iHT$Sex =='F',]        # female iHT samples
 
-HT.data <- TPMdata[match(row.names(metadata.sam.HT),names(TPMdata))]
-iHT.data <- TPMdata[match(row.names(metadata.sam.iHT),names(TPMdata))]
-aHT.data <- TPMdata[match(row.names(metadata.sam.aHT),names(TPMdata))]
-iPSC.data <- TPMdata[match(row.names(metadata.sam.iPSC),names(TPMdata))]
-MN.data <- TPMdata[match(row.names(metadata.sam.MN),names(TPMdata))]
-iHT.f.data <- TPMdata[match(row.names(metadata.sam.iHT.f),names(TPMdata))]
-HT.f.data <- TPMdata[match(row.names(metadata.sam.HT.f),names(TPMdata))]
+### Subset expression data
+HT.data <- TPMdata[match(row.names(metadata.sam.HT),names(TPMdata))]       # All hypothalamus samples (iPSC + adult)
+iHT.data <- TPMdata[match(row.names(metadata.sam.iHT),names(TPMdata))]     # iPSC hypothalamus samples
+aHT.data <- TPMdata[match(row.names(metadata.sam.aHT),names(TPMdata))]     # Adult hypothalamus samples
+iPSC.data <- TPMdata[match(row.names(metadata.sam.iPSC),names(TPMdata))]   # all iPSC samples (iHT + iMN)
+MN.data <- TPMdata[match(row.names(metadata.sam.MN),names(TPMdata))]       # Motor Neuron samples
+iHT.f.data <- TPMdata[match(row.names(metadata.sam.iHT.f),names(TPMdata))] # female HT samples
+HT.f.data <- TPMdata[match(row.names(metadata.sam.HT.f),names(TPMdata))]   # female iHT samples
 
+### Join all data sets into a list from which to select
 datalist <- list(HT.data,iHT.data,aHT.data,iPSC.data,MN.data,iHT.f.data,HT.f.data)
 names(datalist) <- c("HT","iHT","aHT","iPSC","MN","iHT.f","HT.f")
 
@@ -250,20 +273,18 @@ names(datalist) <- c("HT","iHT","aHT","iPSC","MN","iHT.f","HT.f")
 for(list.element in 1:length(datalist)) {
   datalist[[list.element]] <- sortByMed(addMedSD(datalist[[list.element]]))[1:4000,]
 }
-
 ### Generate full lists of genes
 genelist <- datalist
 for(list.element in 1:length(datalist)) {
   current.genelist <- addGene(genelist[[list.element]])
   genelist[[list.element]] <- current.genelist[ncol(current.genelist)]
 }
-
 ########################################################################
 ### Subset gene list
 ########################################################################
 
 names(genelist)  # Lists the available data sets in the list of datasets
-geneset <- 3  # Specifies the data set to use
+geneset <- 2  # Specifies the data set to use
 genes.of.interest.full <- genelist[[geneset]][,1] # Declares the genes to use
 ids.of.interest.full <- row.names(genelist[[geneset]]) # Declares the IDs of the genes to use
 geneset <- names(genelist[geneset]) # Names the geneset for use in plot titles
@@ -273,7 +294,7 @@ print(geneset) # Reports the geneset in use
 ### Generate gtex plot data
 ########################################################################
 
-length <- 800 
+length <- 1200
 
 ids.of.interest <- ids.of.interest.full[1:length] # Subselects based on the specified depth
 ### Calculate p-values ############################################
@@ -290,18 +311,18 @@ names(gtex.results) <- c('p0.05','p0.01','p0.001','p1e-4')
 ########################################################################
 
 setwd("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/pSI_results/")
-#write.csv(gtex.results, paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".csv"))
-print(paste('Wrote',paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"))))
-gtex.results <- read.csv('gtex_aHT_800_TueSep061133.csv',row.names = 1)
+write.csv(gtex.results, paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".csv")); print(paste('Wrote',paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"))))
+gtex.results <- read.csv('gtex_iHT_800_WedOct051352.csv',row.names = 1)
 
 ########################################################################
 ### Format counts and results
 ########################################################################
 
 ### Remove empty rows
-#gtex.results.trim <- data.frame(t(gtex.results[gtex.results$p0.05 != 1,]))
-gtex.results.trim <- gtex.results[gtex.results$p0.05 != 1,]
+#gtex.results.trim <- gtex.results
+gtex.results.trim <- gtex.results[gtex.results$p0.05 < 0.1,]
 gtex.counts.trim <- gtex.counts[row.names(gtex.results.trim),]
+gtex.counts.trim$p1e.4 <- gtex.counts.trim$p1e.4+1
 
 ### Reverse row order
 gtex.counts.trim <- gtex.counts.trim[c(4,3,2,1)]
@@ -320,19 +341,22 @@ gtex.plotting[3] <- -log10(gtex.plotting[3])
 #gtex.plotting[4] <- log10(gtex.plotting[4]+1)
 
 ### Add bands between bands
-gtex.plotting <- add.bands.between(gtex.plotting,0.2)
+gtex.plotting <- add.bands.between(gtex.plotting,0.25)
+
+### Calculate maximum bullseye size for plot limits
+plot.max.lim <- ceiling(max(rowSums(log10(gtex.counts.trim))))
 
 ########################################################################
 ### Plot one bullseye
 ########################################################################
 
-sample.pos <- 6  # Declare the gene interest by giving its position
+### Declare the gene of interest by giving its position
+sample.pos <- 2
 
+### Declare a subsetted dataframe using the specified gene of interest's position
 gtex.plotting.sub <- gtex.plotting[(((sample.pos-1)*8)+1):(((sample.pos-1)*8)+8),]
-#myPalette <- colorRampPalette(c("black","white","yellow","yellow",'orange','red','firebrick4'))
-myPalette <- colorRampPalette(c("gray","yellow",'orange','red','firebrick4','black'))
-#myPalette <- colorRampPalette(c("black","white","yellow","yellow",'orange','orange','red','red','red4','red4'))
 
+### Generate plot
 ggplot(data = gtex.plotting.sub, aes(x = Sample, y = Set.size, fill = p.Value)) +
   geom_bar(width = 1, stat = "identity") + 
   scale_y_continuous(limits = c(0,12)) +
@@ -341,186 +365,54 @@ ggplot(data = gtex.plotting.sub, aes(x = Sample, y = Set.size, fill = p.Value)) 
         axis.title.y = element_blank(), axis.ticks = element_blank(), axis.text = element_blank(),
         plot.margin = unit(c(0,0,0,0), "cm"), axis.text = element_text(size = 12),
         panel.background = element_rect(fill = 'white')) +  coord_polar() +
-  scale_fill_distiller(palette = 'YlOrRd', direction = 1) +
+  scale_fill_distiller(palette = 'YlOrRd', direction = 1, limits=c(1, 50), oob = censor, na.value = 'gray95') +
   geom_bar(aes(y = bands), width = 1, stat = 'identity', fill = c(alpha('black',0),'black',alpha("black",0),'black',alpha("black",0),'black',alpha("black",0),'black'))
   
-
 ########################################################################
-### Experimenting with layers
-########################################################################
-
-gtex.plotting.sub <- gtex.plotting[seq(1,length(gtex.plotting[,1]),4)[sample.pos]:seq(1,length(gtex.plotting[,1]),4)[sample.pos]+4,]
-
-gtex.plotting.sub <- gtex.plotting[(((sample.pos-1)*4)+1):(((sample.pos-1)*4)+4),]
-
-
-base <- ggplot(data = gtex.plotting.sub, aes(x = Sample, y = Set.size, fill = p.Value)) +
-  geom_bar(width = 1, stat = "identity") + scale_fill_gradientn(colors = myPalette(100), limits=c(0, 50), oob = squish)
-
-layer1 <- ggplot(data = gtex.plotting.sub, aes(x = Sample, y = Set.size)) +
-  geom_bar(aes(y = bands),width = 0.5, stat = "identity", fill = c(alpha("black",0.05),'black',alpha("black",0.5),'black',alpha("black",0.15),'black',alpha("black",0),'black'))
-
-### whew
-base + geom_bar(aes(y = bands),width = 0.5, stat = "identity", fill = c(alpha("black",0.05),'black',alpha("black",0.5),'black',alpha("black",0.15),'black',alpha("black",0),'black'))
-
-
-
-base <- ggplot(data = gtex.plotting.sub, aes(x = Sample, y = Set.size, fill = p.Value)) +
-  geom_bar(width = 1, stat = "identity") + scale_fill_gradientn(colors = myPalette(100), limits=c(0, 50), oob = squish)
-
-layer1 <- ggplot(data = plotting.lines, aes(x = Sample, y = Set.size)) +
-  geom_bar(aes(y = Set.size/.9),width = 0.5, stat = "identity", fill = c(alpha("black",0.05),'black',alpha("black",0.5),'black',alpha("black",0.15),'black',alpha("black",0),'black'))
-
-
-colour=alpha("black",0.15)
-
-########################################################################
-### Plot faceted plots
+### Plot tissue types in batch for faceting
 ########################################################################
 
-generate.bullseyes <- function(dataframe) {
-  plot.list <- list()
-  myPalette <- colorRampPalette(c("white","yellow",'orange','red','firebrick4','black'))
-  #myPalette <- colorRampPalette(c("black","white","yellow","yellow",'orange','orange','red','red','red4','red4'))
-  for(sample.pos in seq(1,length(dataframe[,1])/8)){
-    gtex.plotting.sub <- gtex.plotting[(((sample.pos-1)*8)+1):(((sample.pos-1)*8)+8),]
-    #gtex.plotting.sub <- gtex.plotting[start.row:(start.row+8),]
-    current.plot <- ggplot(data = gtex.plotting.sub, aes(x = Sample, y = Set.size, fill = p.Value)) +
-      geom_bar(width = 1, stat = "identity") + 
-      scale_y_continuous(limits = c(0,18)) +
-      xlab(gtex.plotting.sub[1][1,]) +
-      theme(axis.title.x = element_text(face="bold", size=14,margin =margin(0,0,15,0)),
-            axis.title.y = element_blank(), axis.ticks = element_blank(), axis.text = element_blank(),
-            plot.margin = unit(c(0,0,0,0), "cm"), axis.text = element_text(size = 12),
-            panel.background = element_rect(fill = 'white'), legend.position="none") +  
-      coord_polar() +
-      scale_fill_gradientn(colors = myPalette(100), limits=c(0, 50), oob = squish)
-    plot.list[[length(plot.list)+1]] <- current.plot
-  }
-  print(paste("List contains",length(plot.list),"plots"))
-  return(plot.list)
-}
-
-plot.list <- generate.bullseyes(gtex.plotting)
+plot.list <- generate.bullseyes(gtex.plotting, plot.max.lim)
 
 ########################################################################
-### Select data to plot
+### Generate faceted plots
 ########################################################################
+print(paste('There are', length(plot.list), 'tissue types available for plotting'))
 
-p.l <- plot.list[1:15]
-p.l <- plot.list[14:28]
-  
-(tiled.figure<-grid.arrange(p.l[[1]],p.l[[2]],p.l[[3]],p.l[[4]],p.l[[5]],
-                            p.l[[6]],p.l[[7]],p.l[[8]],p.l[[9]],p.l[[10]],
-                            p.l[[11]],p.l[[12]],p.l[[13]],p.l[[14]],p.l[[15]],
-                            ncol = 5, top = title))
+### Specify bullseyes to plot
+p.l <- plot.list
+
+n <- length(p.l); nCol <- floor(sqrt(n))
+
+(tiled.figure <- do.call("grid.arrange", c(p.l, ncol=nCol)))
+
+
 
 
 (tiled.figure <- grid.arrange(plot.list[[1]],plot.list[[2]],plot.list[[3]],plot.list[[4]],
                               ncol = 4, top = title))
-nColors=99
-start = 40
-end = 100
-(n = nColors)
-
-
-  scale_colour_manual(breaks = c("0", "1", "3", "6", "9", "12"),
-                      labels = c("0 month", "1 month", "3 months",
-                                 "6 months", "9 months", "12 months"),
-                      values = c("#E69F00", "#56B4E9", "#009E73", 
-                                 "#F0E442", "#0072B2", "#D55E00"))
-
-  scale_fill_manual(values=c("red", "blue", "green"))
- +
-  
-
-    
-add.bands.between <- function(data.frame,width) {
-      new.df <- data.frame[1,]-(width/2)
-      new.df <- rbind(new.df,rep(width,length(data.frame)))
-      for(row in 2:length(data.frame[,1])) {
-        new.df <- rbind(new.df,data.frame[row,]-width)
-        new.df <- rbind(new.df,rep(width,length(data.frame)))
-      }
-      return(new.df)
-    }
-  
-
-gtex.plot <- ggplot(data = gtex.plotting.melt,aes(x = reorder(tissue, -value), y = value, fill = variable)) +
-  geom_bar(position = "dodge",stat="identity") + 
-  labs(title = paste("Overlap of the top",length,"genes in",geneset,"and gtex"),
-       x = "Tissue",
-       y = "Negative log10 p-value") +
-  theme(plot.title = element_text(color="black", face="bold", size=22, margin=margin(10,0,20,0)),
-        axis.title.x = element_text(face="bold", size=14,margin =margin(20,0,10,0)),
-        axis.title.y = element_text(face="bold", size=14,margin =margin(0,20,0,10)),
-        plot.margin = unit(c(1,1,1,1), "cm"), axis.text = element_text(size = 12),
-        panel.background = element_rect(fill = 'white', colour = 'black'),
-        axis.text.x = element_text(angle = 90, hjust = 1)) +
-  scale_fill_brewer("p-value",palette = 'Reds')
-
-gtex.plot
-
-
-
-
-
-
-
-
-
-
-
-counts.with.bands <- add.bands.between(psi.counts,9)
-
-#gtex.counts <- melt(psi.counts)
-gtex.counts <- melt(counts.with.bands)
-gtex.counts[2] <- log10(gtex.counts[2]+1)
-
-gtex.with.bands <- add.bands.between(data.frame(t(gtex.results)),20)
-temp <- melt(t(gtex.results))
-
-gtex.counts[3] <- -log10(temp$value)
-
-names(gtex.counts) <- c('Sample', 'Set.size', 'p.Value')
-########################################################################
-### Add plot data to counts.
-########################################################################
-
-counts.with.bands <- test.t[1,]
-counts.with.bands <- rbind(counts.with.bands,rep(9,length(test.t)))
-for(row in 2:length(test.t[,1])) {
-  counts.with.bands <- rbind(counts.with.bands,test.t[row,])
-  counts.with.bands <- rbind(counts.with.bands,rep(9,length(test.t)))
-}
-
-test <- gtex.results[1:5,]
-test.t <- t(test)
-
-
-
-
-
 
 
 ##########################################################
-### Removing the empties
+### Saving faceted plots
 ##########################################################
 
-sample.pos <- 8
+title.split <- strsplit(gtex.plot$labels$title," ")[[12]]
+geneset <- title.split[8]
+length <- title.split[5]
 
-ggplot(data = gtex.counts[((sample.pos-1)*4+1):(((sample.pos-1)*4)+4),], aes(x = Sample, y = Set.size, fill = p.Value)) +
-  geom_bar(width = 1, stat = "identity") +
-  coord_polar()
+getwd()
+png(filename=paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".png"), 
+     type="cairo",
+     units="in", 
+     width=14, 
+     height=14, 
+     pointsize=12,
+     res=300)
+do.call("grid.arrange", c(p.l, ncol=nCol))
+dev.off()
 
 
-((sample.pos-1)*4+1):(((sample.pos-1)*4)+4)
-
-### Generate plot from melted data
-gtex.plot <- generate.gtex.fig.from.data(gtex.plot.data.melt)
-
-### Display the plot
-gtex.plot
 
 ### Save plot
 tiff(filename=paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".tiff"), 
@@ -549,19 +441,7 @@ for(length in seq(start,end,step)) {
 gtex.plot <- gtex.plots[[8]]
 gtex.plot
 
-### Save plots in list
-title.split <- strsplit(gtex.plot$labels$title," ")[[12]]
-geneset <- title.split[8]
-length <- title.split[5]
-tiff(filename=paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".tiff"), 
-     type="cairo",
-     units="in", 
-     width=14, 
-     height=14, 
-     pointsize=12,
-     res=100)
-gtex.plot
-dev.off()
+
 
 ########################################################################
 ### Generate tsea data and figures
@@ -747,18 +627,12 @@ csea.plot
 dev.off()
 
 
+########################################################################
+### Scratch work
+########################################################################
 
 
-
-
-
-###################################################
-### Generate overlap lists
-###################################################
-
-test <- candidate.overlap(pSIs=psi.tsea,candidate.genes=genes.of.interest)
-
-test <- candidate.overlap(brain_genes_0.05,genes.of.interest)
-
-
-
+(tiled.figure<-grid.arrange(p.l[[1]],p.l[[2]],p.l[[3]],p.l[[4]],p.l[[5]],
+                            p.l[[6]],p.l[[7]],p.l[[8]],p.l[[9]],p.l[[10]],
+                            p.l[[11]],p.l[[12]],p.l[[13]],p.l[[14]],p.l[[15]],
+                            ncol = 5, top = title))

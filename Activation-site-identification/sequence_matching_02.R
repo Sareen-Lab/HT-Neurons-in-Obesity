@@ -130,9 +130,8 @@ names(binding.hits) <- c("genes","RELA","TP53.co","TP53.14")
 ########################################################################
 ### Compare TF binding to random targets
 ########################################################################
-column.pos <- 1
+column.pos <- 3
 rand.results <- sapply(rand.promoter.seqs, function(pseq) matchPWM(pfm.list[[column.pos]], pseq, min.score="85%"))
-rand.results <- sapply(promoter.seqs, function(pseq) matchPWM(pfm.list[[column.pos]], pseq, min.score="60%"))
 
 hit.numbers <- c()
 closest.prox <- c()
@@ -161,6 +160,10 @@ rand.pos.mat <- cbind(rand.pos.mat,closest.prox)
 
 #names(rand.hits.mat) <- c("60%","70%","80%","85%")
 #names(rand.pos.mat) <- c("60%","70%","80%","85%")
+
+### Calculate minimum, max, and median values
+summary(rand.pos.mat)
+summary(rand.hits.mat)
 
 ########################################################################
 ### Compare TF binding to selected genes

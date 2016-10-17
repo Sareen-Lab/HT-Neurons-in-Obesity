@@ -18,10 +18,10 @@ library(gridExtra)
 ensembl = useMart(host="www.ensembl.org",dataset="hsapiens_gene_ensembl")
 ensembl = useMart(host='www.ensembl.org',biomart='ENSEMBL_MART_ENSEMBL')
 ensembl = useMart(host='www.ensembl.org',biomart='ENSEMBL_MART_ENSEMBL',dataset="hsapiens_gene_ensembl")
-#listMarts(host="www.ensembl.org")
-#listDatasets(ensembl)
-#filters = listFilters(ensembl)
-#attributes = listAttributes(ensembl)
+listMarts(host="www.ensembl.org")
+listDatasets(ensembl)
+filters = listFilters(ensembl)
+attributes = listAttributes(ensembl)
 
 ########################################################################
 ### Functions

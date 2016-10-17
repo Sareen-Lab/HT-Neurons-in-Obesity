@@ -9,6 +9,7 @@
 
 library(gplots)
 library(RColorBrewer)
+library(colorRamps)
 library(biomaRt)
 library(DESeq2)
 library(Hmisc)
@@ -72,15 +73,15 @@ metaData <- read.csv("z://Data/RNAseq HT neurons and tissue/2nd rerun/samples.cs
 
 references <- read.table("c://Users/grossar/Bioinform/DATA/rna_seq/Reference_transcriptomes/GTEx_Analysis_v6_RNA-seq_RNA-SeQCv1.1.8_gene_median_rpkm.gct",sep="\t",header=TRUE,row.names=1)
 
-referenceNames <- c("Adipose--subcutaneous","Adipose--omentum","Adrenal_gland","Aorta","Coronary_artery",
-                    "Tibial_artery","Bladder","Brain--amygdala","Brain--anteriror_cingulate","Brain--caudate_nucleous",
-                    "Brain--cerebellar_hemisphere","Brain--cerebellum","Brain--cortex","Brain--Frontal_cortex",
-                    "Brain--hippocampus","Brain--hypothalamus","Brain--nucleus_accumbens","Brain--putamen",
-                    "Brain--spinal_cord","Brain--Substantia_nigra","Mammary","Lymphocyte","Fibroblast","Ectocervix",
-                    "Endocervix","Colon--sigmoid","Colon--transverse","Gastroesophageal_junction","Esophagus--mucosa",
-                    "Esophagus--muscularis","Fallopian_tube","Heart--Atrial","Heart--left_ventricle",
-                    "Kidney","Liver","Lung","Salvitory_gland","Skeletal_muscle","Tibial_nerve","Ovary","Pancreas",
-                    "Pituitary","Prostate","Skin--Suprapubic","Skin--Leg","Small_intestine","Spleen","Stomach","Testis","Thyroid","Uterus","Vagina","Whole_blood")
+referenceNames <- c("Adipose, subcutaneous","Adipose, omentum","Adrenal gland","Aorta","Coronary artery",
+                    "Tibial artery","Bladder","Amygdala","Anteriror cingulate nucleous","Caudate nucleous",
+                    "Cerebellar hemisphere","Cerebellum","Cortex","Frontal cortex BA9",
+                    "Hippocampus","Hypothalamus","Nucleus accumbens","Putamen",
+                    "Spinal cord","Substantia nigra","Mammary","Lymphocyte","Fibroblast","Ectocervix",
+                    "Endocervix","Colon, sigmoid","Colon, transverse","Gastroesophageal junction","Esophagus, mucosa",
+                    "Esophagus, muscularis","Fallopian tube","Heart, Atrial","Heart, left ventricle",
+                    "Kidney","Liver","Lung","Salvitory gland","Skeletal muscle","Tibial nerve","Ovary","Pancreas",
+                    "Pituitary","Prostate","Skin, sun-hidden","Skin, sun-exposed","Small intestine","Spleen","Stomach","Testis","Thyroid","Uterus","Vagina","Whole blood")
 
 ########################################################################
 ### Formating
@@ -119,18 +120,14 @@ names(referenceTranscriptomeList) <- referenceNames
 ########################################################################
 
 transcriptomeList <- append(referenceTranscriptomeList,sampleTranscriptomeList)
-#transcriptomeList <- referenceTranscriptomeList
-#transcriptomeList <- sampleTranscriptomeList
 
 ########################################################################
 ### Subsample sample number
 ########################################################################
 
-length(transcriptomeList)
-transcriptomeList <- transcriptomeList[-c(22,49,53)] # no Testes blood, lympocyte
 transcriptomeList <- transcriptomeList[-c(1,2,4,5,7,22,24,25,26,27,28,29,30,31,34,35,36,43,48,49,51,53)] # brain, skin, fibroblast
-transcriptomeList <- transcriptomeList[[]] # Assorted
-str(transcriptomeList)
+#transcriptomeList <- transcriptomeList[-c(22,49,53)] # no Testes blood, lympocyte
+names(transcriptomeList)
 
 ########################################################################
 ### Subsample length
@@ -158,7 +155,6 @@ uniqueIDs <- unique(allIDs)
 length(uniqueIDs)
 
 ### Generate a dataframe with each of the unique IDs
-
 transcriptsDF <- data.frame(uniqueIDs)
 for (df in transcriptomeList) {
   unusedIDs <- setdiff(uniqueIDs,row.names(df))
@@ -168,11 +164,10 @@ for (df in transcriptomeList) {
   transcriptsDF[length(transcriptsDF)+1] <- newDF
 }
 
-row.names(transcriptsDF) <- transcriptsDF[,1]
-transcriptsDF <- transcriptsDF[2:length(transcriptsDF)]
-names(transcriptsDF) <- names(transcriptomeList)
-
-transcriptsMatrix <- as.matrix(transcriptsDF)
+row.names(transcriptsDF) <- transcriptsDF[,1]  # Assign row names
+transcriptsDF <- transcriptsDF[2:length(transcriptsDF)]  #Remove first column of DF
+names(transcriptsDF) <- names(transcriptomeList)  # Assign column names
+transcriptsMatrix <- as.matrix(transcriptsDF)  # Convert to matrix
 
 ########################################################################
 ### Compare, v3
@@ -188,10 +183,10 @@ comparisonMatrix <- round(comparisonMatrix*100,0)
 nColors=99
 start = 40
 end = 100
-my_palette <- colorRampPalette(c("yellow","white","blue"))(n = nColors)
-my_palette <- colorRampPalette(c("red","black","green"))(n = nColors)
 my_palette <- colorRampPalette(c("black","red","orange","yellow","white"))(n = nColors)
-my_palette <- colorRampPalette(c("black","red","yellow","white"))(n = nColors)
+my_palette <- colorRampPalette(c("white","yellow","orange","red","black"))(n = nColors)
+my_palette <- rev(heat.colors(nColors))
+my_palette <- matlab.like(nColors)
 
 col_breaks <- seq(start,end,(end-start)/(nColors))
 
@@ -199,7 +194,7 @@ lmat = rbind(c(0,3),c(2,1),c(0,4))
 lwid = c(1,7)
 lhei = c(1,5,1)
 
-title <- paste("Spearman comparison",specifiedEnd)
+title <- paste("Spearman comparison of samples against GTEx references")
 
 heatmap.2(comparisonMatrix,
           main = title, # heat map title
@@ -210,16 +205,16 @@ heatmap.2(comparisonMatrix,
           trace="none",         # turns off trace lines inside the heat map
           col=my_palette,       # use on color palette defined earlier 
           distfun=dist,
-          #dendrogram="column",     # only draw a row dendrogram
-          #Rowv="NA",
           margins =c(12,12),     # widens margins around plot
           breaks=col_breaks,    # enable color transition at specified limits
-          
+          lmat = lmat, lwid = lwid, lhei = lhei
+          )
+          #dendrogram="column",     # only draw a row dendrogram
+          #Rowv="NA",
           #cellnote = comparisonMatrix,  # same data set for cell labels
           #notecol="black",      # change font color of cell labels to black
           #Colv="NA"             # turn off column clustering
-          lmat = lmat, lwid = lwid, lhei = lhei
-          )
+
 
 
 
@@ -229,7 +224,7 @@ heatmap.2(comparisonMatrix,
 
 setwd("z:/Uthra/HT paper/Bioinformatics figures/Spearman heatmaps/")
 
-filename <- "heatmap-10k-select"
+filename <- "heatmap-10k-select-inverted"
 
 png(filename=paste0(filename,".png"), 
     type="cairo",

@@ -1,19 +1,16 @@
 ### RNA Seq Tissue comparison by Spearman Correlation, Andrew R Gross, 2016-05-16
 ### Input: Normalized RNA-seq data; Reference expression data; metadata
 ### Output: Heatmap displaying pairwise similarity as calculated by Spearman correlation
-###
 
 ########################################################################
 ### Header
 ########################################################################
-
 library(gplots)
 library(RColorBrewer)
 library(colorRamps)
 library(biomaRt)
 library(DESeq2)
 library(Hmisc)
-
 listMarts()
 ensembl = useMart(host="www.ensembl.org")
 ensembl = useMart(host="www.ensembl.org",dataset="hsapiens_gene_ensembl")
@@ -27,19 +24,16 @@ ensembl = useMart(host='www.ensembl.org',biomart='ENSEMBL_MART_ENSEMBL',dataset=
 ########################################################################
 ### Functions
 ########################################################################
-
-addMedSD <- function(dataframe) {
+addMedSD <- function(dataframe) {   # Add median and standard dev. columns at end of dataframe
   median <- apply(dataframe,1,median)
   sd <- apply(dataframe,1,sd)
   return(data.frame(dataframe,median,sd))  
 }
-
-sortByMed <- function(dataframe) {
+sortByMed <- function(dataframe) {  # Reorder the dataframe by the value in the column 'median'
   order <- order(dataframe$median,decreasing=TRUE)
   return(dataframe[order,])
 }
-
-convertIDs <- function(dataframe) {
+convertIDs <- function(dataframe) { # Remove everything after the decimal in row names
   ensemblIDs <- c()
   for (rowName in row.names(dataframe)) {
     ensemblID <- strsplit(rowName,"\\.")[[1]][1]
@@ -48,12 +42,11 @@ convertIDs <- function(dataframe) {
   row.names(dataframe)<-ensemblIDs
   return(dataframe)
 }
-
-addGene <- function(dataframe) {
+addGene <- function(dataframe) {    # Look up the gene symbol for all the ensembl ids
   genes <- getBM(attributes=c('ensembl_gene_id','external_gene_name'), filters='ensembl_gene_id', values=row.names(dataframe), mart=ensembl)
   genes <- genes[match(row.names(dataframe),genes[,1]),]
   Gene <- c()
-  for (rowNumber in 1:length(genes[,1])) {
+  for (rowNumber in 1:length(genes[,1])) { # Reorder the list of gene symbols to match the order of the IDs
     newGene <- genes[rowNumber,][,2]
     Gene <- c(Gene, newGene)
   }
@@ -64,23 +57,18 @@ addGene <- function(dataframe) {
 ########################################################################
 ### Import Data
 ########################################################################
-
 ### Normalized
 TPMdata <- read.csv("z://Data/RNAseq HT neurons and tissue/Andrews_files/20160317_Sareen_rerun-29299281.tpm.csv", row.names=1)
 metaData <- read.csv("z://Data/RNAseq HT neurons and tissue/2nd rerun/samples.csv", row.names=1)
 
 ### Import references
-
 references <- read.table("c://Users/grossar/Bioinform/DATA/rna_seq/Reference_transcriptomes/GTEx_Analysis_v6_RNA-seq_RNA-SeQCv1.1.8_gene_median_rpkm.gct",sep="\t",header=TRUE,row.names=1)
 
-referenceNames <- c("Adipose, subcutaneous","Adipose, omentum","Adrenal gland","Aorta","Coronary artery",
-                    "Tibial artery","Bladder","Amygdala","Anteriror cingulate nucleous","Caudate nucleous",
-                    "Cerebellar hemisphere","Cerebellum","Cortex","Frontal cortex BA9",
-                    "Hippocampus","Hypothalamus","Nucleus accumbens","Putamen",
-                    "Spinal cord","Substantia nigra","Mammary","Lymphocyte","Fibroblast","Ectocervix",
-                    "Endocervix","Colon, sigmoid","Colon, transverse","Gastroesophageal junction","Esophagus, mucosa",
-                    "Esophagus, muscularis","Fallopian tube","Heart, Atrial","Heart, left ventricle",
-                    "Kidney","Liver","Lung","Salvitory gland","Skeletal muscle","Tibial nerve","Ovary","Pancreas",
+### Reference names, formatted
+referenceNames <- c("Adipose, subcutaneous","Adipose, omentum","Adrenal gland","Aorta","Coronary artery","Tibial artery","Bladder","Amygdala","Anteriror cingulate nucleous","Caudate nucleous",
+                    "Cerebellar hemisphere","Cerebellum","Cortex","Frontal cortex BA9","Hippocampus","Hypothalamus","Nucleus accumbens","Putamen",
+                    "Spinal cord","Substantia nigra","Mammary","Lymphocyte","Fibroblast","Ectocervix","Endocervix","Colon, sigmoid","Colon, transverse","Gastroesophageal junction","Esophagus, mucosa",
+                    "Esophagus, muscularis","Fallopian tube","Heart, Atrial","Heart, left ventricle","Kidney","Liver","Lung","Salvitory gland","Skeletal muscle","Tibial nerve","Ovary","Pancreas",
                     "Pituitary","Prostate","Skin, sun-hidden","Skin, sun-exposed","Small intestine","Spleen","Stomach","Testis","Thyroid","Uterus","Vagina","Whole blood")
 
 ########################################################################
@@ -94,7 +82,7 @@ TPMdata <- convertIDs(TPMdata)
 
 ### Remove 02iOBS and both iMN
 TPMdata[c("iHT_02iOBS","iMN_87iCTR","iMN_201iCTR","21-Reference")] <- NULL
-sampleNames <- names(TPMdata)
+sampleNames <- c("iHT_03iCTR","iHT_90iOBS","iHT_77iOBS","aHT_1662","aHT_1838","aHT_1843","aHT_2266","iHT_02iCTR","aHT_2884","iHT_87iCTR","iHT_201iCTR","iHT_25iCTR","iHT_688iCTR","iHT_80iCTR","iHT_74iOBS","iHT_03iOBS")
 
 ### Format samples into a list
 sampleTranscriptomeList <- list()
@@ -116,7 +104,7 @@ for (tissueNumber in 2:length(references)) {
 names(referenceTranscriptomeList) <- referenceNames
 
 ########################################################################
-### Add samples to full data list
+### Join sample list and reference list
 ########################################################################
 
 transcriptomeList <- append(referenceTranscriptomeList,sampleTranscriptomeList)
@@ -133,7 +121,7 @@ names(transcriptomeList)
 ### Subsample length
 ########################################################################
 
-specifiedEnd <- 10000
+specifiedEnd <- 1000
 for (elementNumber in 1:length(transcriptomeList)) {
   currentDatafame <- transcriptomeList[[elementNumber]]
   #selectedRows <- currentDatafame[,1] > 1 
@@ -176,17 +164,30 @@ transcriptsMatrix <- as.matrix(transcriptsDF)  # Convert to matrix
 comparisonMatrix <- rcorr(transcriptsMatrix, type="spearman")[[1]]
 comparisonMatrix <- round(comparisonMatrix*100,0)
 
+########################################################################
+### Reorder, v3
+########################################################################
+
+sample.order <- comparisonMatrix["iHT_02iCTR_S13",]
+sample.order.new <- names(sort(test,decreasing = TRUE))
+test <- comparisonMatrix[sample.order.new,]
+test <- test[,sample.order.new]
+
+colnames(comparisonMatrix)
+sample.order.num <- c(32,33,34,39,41,42,43,44,45,46,47,35,36,37,38,40,11,3,10,13,5,9,15,14,
+                      25,6,7,23,1,18,19,22,2,30,16,31,20)
+test <- comparisonMatrix[sample.order.num,]
+comparisonMatrix <- test[,sample.order.num]
+
 ######################################################################################
 ### Plot heatmap
 ######################################################################################
 
-nColors=99
-start = 40
+start = 30
 end = 100
-my_palette <- colorRampPalette(c("black","red","orange","yellow","white"))(n = nColors)
-my_palette <- colorRampPalette(c("white","yellow","orange","red","black"))(n = nColors)
+nColors = (end - start) * 2
+my_palette <- rev(colorRampPalette(c("black","red","orange","yellow","white"))(n = nColors))
 my_palette <- rev(heat.colors(nColors))
-my_palette <- matlab.like(nColors)
 
 col_breaks <- seq(start,end,(end-start)/(nColors))
 
@@ -201,20 +202,19 @@ heatmap.2(comparisonMatrix,
           cellnote = comparisonMatrix,
           notecol = "gray40",
           density.info="none",  # turns off density plot inside color legend
-          notecex=0.6,
+          notecex=0.7,
           trace="none",         # turns off trace lines inside the heat map
           col=my_palette,       # use on color palette defined earlier 
           distfun=dist,
           margins =c(12,12),     # widens margins around plot
           breaks=col_breaks,    # enable color transition at specified limits
+          dendrogram="none",     # only draw a row dendrogram
+          Rowv="NA",
+          Colv="NA",             # turn off column clustering
           lmat = lmat, lwid = lwid, lhei = lhei
           )
-          #dendrogram="column",     # only draw a row dendrogram
-          #Rowv="NA",
           #cellnote = comparisonMatrix,  # same data set for cell labels
           #notecol="black",      # change font color of cell labels to black
-          #Colv="NA"             # turn off column clustering
-
 
 
 
@@ -224,7 +224,7 @@ heatmap.2(comparisonMatrix,
 
 setwd("z:/Uthra/HT paper/Bioinformatics figures/Spearman heatmaps/")
 
-filename <- "heatmap-10k-select-inverted"
+filename <- "heatmap-10k-reordered-recolored"
 
 png(filename=paste0(filename,".png"), 
     type="cairo",
@@ -232,19 +232,23 @@ png(filename=paste0(filename,".png"),
     width=14, 
     height=10, 
     pointsize=12, 
-    res=300)
+    res=400)
 heatmap.2(comparisonMatrix,
           main = title, # heat map title
           cellnote = comparisonMatrix,
           notecol = "gray40",
           density.info="none",  # turns off density plot inside color legend
-          notecex=0.6,
+          notecex=0.7,
           trace="none",         # turns off trace lines inside the heat map
           col=my_palette,       # use on color palette defined earlier 
           distfun=dist,
           margins =c(12,12),     # widens margins around plot
           breaks=col_breaks,    # enable color transition at specified limits
-          lmat = lmat, lwid = lwid, lhei = lhei)
+          dendrogram="none",     # only draw a row dendrogram
+          Rowv="NA",
+          Colv="NA",             # turn off column clustering
+          lmat = lmat, lwid = lwid, lhei = lhei
+)
 dev.off()
 
 

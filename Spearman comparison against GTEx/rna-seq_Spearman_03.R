@@ -121,7 +121,7 @@ names(transcriptomeList)
 ### Subsample length
 ########################################################################
 
-specifiedEnd <- 1000
+specifiedEnd <- 10000
 for (elementNumber in 1:length(transcriptomeList)) {
   currentDatafame <- transcriptomeList[[elementNumber]]
   #selectedRows <- currentDatafame[,1] > 1 
@@ -183,7 +183,7 @@ comparisonMatrix <- test[,sample.order.num]
 ### Plot heatmap
 ######################################################################################
 
-start = 30
+start = 50
 end = 100
 nColors = (end - start) * 2
 my_palette <- rev(colorRampPalette(c("black","red","orange","yellow","white"))(n = nColors))
@@ -224,7 +224,7 @@ heatmap.2(comparisonMatrix,
 
 setwd("z:/Uthra/HT paper/Bioinformatics figures/Spearman heatmaps/")
 
-filename <- "heatmap-10k-reordered-recolored"
+filename <- "heatmap-10k-reordered-recolored-min50"
 
 png(filename=paste0(filename,".png"), 
     type="cairo",

@@ -335,7 +335,9 @@ names(gtex.results) <- c('p0.05','p0.01','p0.001','p1e-4')
 
 setwd("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/pSI_results/")
 #write.csv(gtex.results, paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".csv")); print(paste('Wrote',paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"))))
-gtex.results <- read.csv('gtex_aHT_1000_TueSep061740.csv',row.names = 1)
+input.file <- 'gtex_aHT_1000_TueSep061740.csv'
+input.file <- 'gtex_iHT_1200_WedOct051355.csv'
+gtex.results <- read.csv(input.file,row.names = 1)
 
 ########################################################################
 ### Rename rows
@@ -346,7 +348,35 @@ row.names(gtex.counts) <- referenceNames
 names(gtex.results) <- c('p0.05','p0.01','p0.001','p1e-4')
 
 ########################################################################
-### Format counts and results
+### Format results for Cytoscape
+########################################################################
+
+### Add sample names column
+gtex.results.prep <- gtex.results
+
+### Alphabetically sort
+gtex.results.prep <- gtex.results.prep[order(row.names(gtex.results.prep)),]
+
+### Reshape the dataframe
+pSI.levels <- names(gtex.results)
+names(gtex.results.prep) <- rep('p-val',4)
+results.for.cytoscape <- rbind(gtex.results.prep[4],gtex.results.prep[3],gtex.results.prep[2],gtex.results.prep[1])
+row.names(results.for.cytoscape) <- c(row.names(gtex.results.prep),seq(1,159))
+
+### Add a label column
+pSI.labels <- c(rep(pSI.levels[4],nrow(gtex.results)),rep(pSI.levels[3],nrow(gtex.results)),rep(pSI.levels[2],nrow(gtex.results)),rep(pSI.levels[1],nrow(gtex.results)))
+results.for.cytoscape <- cbind(results.for.cytoscape,pSI.labels)
+
+### Log transform the data
+results.for.cytoscape[1] <- -log10(results.for.cytoscape[1])
+
+### Output
+write.csv(results.for.cytoscape,paste0("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/output for cytoscape/",input.file,strftime(Sys.time(),"%a%b%d%H%M"),".csv")); print(paste0("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/output for cytoscape/",input.file,strftime(Sys.time(),"%a%b%d%H%M"),".txt"))
+
+
+
+########################################################################
+### Format counts and results for plotting in R
 ########################################################################
 
 ### Remove empty rows

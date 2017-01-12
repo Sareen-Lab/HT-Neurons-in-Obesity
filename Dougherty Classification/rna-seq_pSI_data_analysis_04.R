@@ -199,20 +199,20 @@ metadata.sam <- metadata.sam[-match("Reference",row.names(metadata.sam)),]
 metadata.sam <- metadata.sam[-match("iHT_02iOBS",row.names(metadata.sam)),]
 
 referenceNames <- c("Adipose, subcutaneous","Adipose, omentum","Adrenal gland","Aorta","Coronary artery",
-                    "Tibial artery","Bladder","Amygdala","Anteriror cingulate nucleous","Caudate nucleous",
+                    "Tibial artery","Bladder","Amygdala","Anterior cingulate cortex","Caudate nucleous",
                     "Cerebellar hemisphere","Cerebellum","Cortex","Frontal cortex BA9",
                     "Hippocampus","Hypothalamus","Nucleus accumbens","Putamen",
-                    "Spinal cord","Substantia nigra","Mammary","Lymphocyte","Fibroblast","Ectocervix",
+                    "Spinal cord","Substantia nigra","Mammary","Transformed Lymphocyte","Fibroblast","Ectocervix",
                     "Endocervix","Colon, sigmoid","Colon, transverse","Gastroesophageal junction","Esophagus, mucosa",
                     "Esophagus, muscularis","Fallopian tube","Heart, Atrial","Heart, left ventricle",
-                    "Kidney","Liver","Lung","Salvitory gland","Skeletal muscle","Tibial nerve","Ovary","Pancreas",
+                    "Kidney","Liver","Lung","Salivary gland","Skeletal muscle","Tibial nerve","Ovary","Pancreas",
                     "Pituitary","Prostate","Skin, sun-hidden","Skin, sun-exposed","Small intestine","Spleen","Stomach","Testis","Thyroid","Uterus","Vagina","Whole blood")
 
 ########################################################################
-### Subsetting
+### Subsetting -- Generate metadata tables and expression tables that only include certain samples based on critieria such as cell type
 ########################################################################
 
-### Subset metadata files -- Metadata files contain data used for subsetting data sets and formatting plots
+### Subset metadata files -- Metadata files contain data used for subsetting expression data sets and, later, formatting plots
 metadata.sam.HT <- na.omit(metadata.sam[metadata.sam$Type == "HT",])       # all HT samples (iPSC + adult)
 metadata.sam.iHT <- metadata.sam[metadata.sam$Group == 'iHT',]             # iPSC HT samples
 metadata.sam.iHT.C <- metadata.sam.iHT[metadata.sam.iHT$Disease == 'CTR',] # iPSC HT control samples
@@ -232,7 +232,7 @@ MN.data <- TPMdata[match(row.names(metadata.sam.MN),names(TPMdata))]       # Mot
 iHT.f.data <- TPMdata[match(row.names(metadata.sam.iHT.f),names(TPMdata))] # female HT samples
 HT.f.data <- TPMdata[match(row.names(metadata.sam.HT.f),names(TPMdata))]   # female iHT samples
 
-### Reference expression data
+### Reference expression data -- Generate tables of expression data for certain samples in the GTEx dataset
 GTEx.HT <- convertIDs(references['Brain...Hypothalamus'])
 
 ### Join all data sets into a list from which to select
@@ -240,7 +240,7 @@ datalist <- list(HT.data,iHT.data,iHT.C.data,aHT.data,iPSC.data,MN.data,iHT.f.da
 names(datalist) <- c("HT","iHT","iHT.ctr","aHT","iPSC","MN","iHT.f","HT.f","GTEx.HT")
 
 ########################################################################
-### Reorder genes by expression
+### Reorder genes by expression -- generate lists of genes ranked from most expressed to least for each data set.  These lists can be subset at any length to give the top n number of genes.
 ########################################################################
 ### Add Median and sort by median
 for(list.element in 1:length(datalist)) {
@@ -254,7 +254,7 @@ for(list.element in 1:length(datalist)) {
 }
 
 ########################################################################
-### Subset gene list
+### Select gene list - Format the gene lists and select the one with which to proceed.
 ########################################################################
 
 names(genelist)  # Lists the available data sets in the list of datasets
@@ -265,10 +265,10 @@ geneset <- names(genelist[geneset]) # Names the geneset for use in plot titles
 print(geneset) # Reports the geneset in use
 
 ########################################################################
-### Output gene lists for web app
+### Output gene lists for web app -- Outputs the top n number of genes in the selected data set in a file that can be pasted into the Dougherty web app
 ########################################################################
 
-length <- 500
+length <- 2000
 
 gene.abrv.df <- getBM(attributes=c('ensembl_gene_id','external_gene_name','hgnc_symbol'), filters='ensembl_gene_id', values=ids.of.interest.full[1:length], mart=ensembl)
 gene.abrv.df <- gene.abrv.df[match(ids.of.interest.full[1:length],gene.abrv.df[,1]),]
@@ -278,25 +278,32 @@ write(gene.abrv.list, paste0("z://Data/RNAseq HT neurons and tissue/Andrews_file
 #write(human.genes, paste0("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/gene lists/",geneset,"-",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".csv")); print(paste('Wrote',paste0("gene_list-",geneset,"-",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".txt")))
 
 ########################################################################
-### pSI determination
+### pSI determination -- Generate the pSI values for each gene within each sample.  This process can be slow, so it should only need to be done once for specific lists of samples, then saved and reused.
 ########################################################################
 
-#pSI.input <- sample.data$pSI.input
-#pSI.input <- references[2:ncol(references)]
-#pSI.output <- specificity.index(pSI.input)
-#pSI.thresholds <- pSI.list(pSI.output)
-#psi.counts <- pSI.count(psi.gtex)
+### Declare the input data set
+#pSI.input <- sample.data$pSI.input  # Use the sample data as input
+#pSI.input <- references[2:ncol(references)]  # Use the full GTEx data set as input
+pSI.input <- references[-c(1,24)]      # Use the GTEx data set, minus fibroblast.
+#pSI.input <- references[-c(1,24,45,46)]      # Use the GTEx data set, minus skin or fibroblast entries.
+#pSI.input <- references[c(4,9,10,11,12,13,14,15,16,17,18,19,20,21,40,43)]      # Use the samples in the GTEx dataset which come from the brain
+pSI.input <- convertIDs(pSI.input)  #  Convert ids to remove the decimal in the ENSMBL ids
+
+### Calculate the pSI table and the gene count from the pSI table
+pSI.output <- specificity.index(pSI.input)  # The specificity.index() generates a table of pSI values
+pSI.thresholds <- pSI.list(pSI.output)      #
+psi.counts <- pSI.count(pSI.output)         # Generate a counts table, containing the number of gene binned in each pSI level of each sample
 
 ########################################################################
-### Save pSI tables
+### Save pSI tables -- Save the pSI table and the counts table for the specific data set for later reuse.
 ########################################################################
 
-#setwd("z://Data/RNAseq HT neurons and tissue/Andrews_files/")
-#write.csv(pSI.output,"pSI_gTEX_full_8-26-16.csv")
-#write.csv(psi.counts, "z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_gTEX_counts_9-29-16.csv")
+### Write the pSI and counts files.  
+write.csv(pSI.output,"z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/psi_gtex_no-fib_SPEC-INDEX_2016-12-20.csv")
+write.csv(psi.counts,"z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/psi_gtex_no-fib_COUNTS_2016-12-20.csv")
 
 ########################################################################
-### Load pSI tables
+### Load pSI tables -- Load previously calculated pSI tables to compare against
 ########################################################################
 
 ### Dougherty tissue list, NAR 2015, Table S3 -- 25 tissues, 18056 genes labeled with gene names
@@ -305,13 +312,24 @@ psi.tsea<-read.table("http://genetics.wustl.edu/jdlab/files/2015/10/TableS3_NAR_
 ### Dougherty cell types, JoN 2016 -- 60 cell types, 16,866 genes in gene name format
 psi.csea <- human$developmental.periods$psi.out
 
-### Gtex tissues -- 53 tissues, 56,418 genes labeled with ENSB IDs
-psi.gtex <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_gTEX_full_8-26-16.csv", header=T,row.names=1)
-psi.gtex <- convertIDs(psi.gtex)
-gtex.counts <- read.csv('Z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_gtex_counts_10_03_16.csv', row.names = 1)
-#write.csv(psi.gtex2, "z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_gTEX_full_10-31-16.csv")
-psi.gtex <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_gTEX_full_10-31-16.csv", header=T,row.names=1)
+### Gtex, full -- 53 tissues, 56,418 genes labeled with ENSB IDs
+psi.gtex <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/pSI_gTEX_full_10-31-16.csv", header=T,row.names=1)
 names(psi.gtex) <- referenceNames
+
+### Gtex, w/o skin -- 50 tissues, 56,418 genes labeled with ENSB IDs
+psi.gtex <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/pSI_GTEx_no-skin_SPEC-INDEX_11-14-16.csv", header=T,row.names=1)
+psi.counts <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/pSI_GTEx_no-skin_COUNTS_11-14-16.csv", header=T,row.names=1)
+names(psi.gtex) <- referenceNames[-c(23,44,45)]
+
+### Gtex, brain -- 16 tissues, 56,418 genes labeled with ENSB IDs
+psi.gtex <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/pSI_GTEx_brain_SPEC-INDEX_11-14-16.csv", header=T,row.names=1)
+psi.counts <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/pSI_GTEx_brain_COUNTS_11-11-16.csv", header=T,row.names=1)
+names(psi.gtex) <- referenceNames[c(4,9,10,11,12,13,14,15,16,17,18,19,20,21,40,43)]
+
+### Gtex, w/o fib -- 52 tissues, 56,418 genes labeled with ENSB IDs
+psi.gtex <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/psi_gtex_no-fib_SPEC-INDEX_2016-12-20.csv", header=T,row.names=1)
+psi.counts <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/psi_gtex_no-fib_COUNTS_2016-12-20.csv", header=T,row.names=1)
+names(psi.gtex) <- referenceNames[-c(23)]
 
 ########################################################################
 ### Generate gtex plot data
@@ -320,58 +338,86 @@ names(psi.gtex) <- referenceNames
 length <- 500
 
 ids.of.interest <- ids.of.interest.full[1:length] # Subselects based on the specified depth
-### Calculate p-values ############################################
+
+### Calculate p-values -- Generate a table of pvalues associated with each tissue at each of the four pSI thresholds
 gtex.results <- fisher.iteration(pSIs = psi.gtex, candidate.genes = ids.of.interest)  ### WARNING:  This command can take >4 minutes
 
-### Format gtex data ##############################################
+### Format gtex data 
+names(gtex.results) <- c('p0.05','p0.01','p0.001','p1e-4')  # Rename the columns in the result table
 #absent.samples <- row.names(gtex.results[gtex.results$`0.05 - adjusted` == 1,])
-names(gtex.results) <- c('p0.05','p0.01','p0.001','p1e-4')
 
 ########################################################################
 ########################################################################
-### Export/Import p-value table
+### Export/Import p-value table -- After calculating the p values used to generate the hexagon plot, save the table
 ########################################################################
 ########################################################################
 
+### Export pSI tables
 setwd("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/pSI_results/")
-#write.csv(gtex.results, paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".csv")); print(paste('Wrote',paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"))))
-input.file <- 'gtex_aHT_1000_TueSep061740.csv'
-input.file <- 'gtex_iHT_1200_WedOct051355.csv'
-gtex.results <- read.csv(input.file,row.names = 1)
+write.csv(gtex.results, paste0("gtex-ns_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"),".csv")); print(paste('Wrote',paste0("gtex_",geneset,"_",length,"_",strftime(Sys.time(),"%a%b%d%H%M"))))
+
+### Inport pSI tables
+#setwd("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/pSI_results/")
+#input.file <- 'gtex_aHT_1000_TueSep061740.csv'
+#input.file <- 'gtex_iHT_1200_WedOct051355.csv'
+#gtex.results <- read.csv(input.file,row.names = 1)
+gtex.results <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/pSI_results/gtex-ns_iHT_250_FriDec091648.csv" ,row.names = 1)
+#gtex.counts <- read.csv("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/specificity.indexes/pSI_GTEx_no-skin_COUNTS_11-11-16.csv", row.names = 1)
 
 ########################################################################
-### Rename rows
+### Rename rows - Row names often get distorted when saving into or out of Excel
 ########################################################################
 
-row.names(gtex.results) <- referenceNames
-row.names(gtex.counts) <- referenceNames
+### For GTEx, full
+#row.names(gtex.results) <- referenceNames
+#names(psi.counts) <- referenceNames
+
+### For GTEx, w/o skin
+#row.names(gtex.results) <- referenceNames[-c(23,44,45)]
+#names(psi.counts) <- referenceNames[-c(23,44,45)]
+
+### For GTEx, brain
+#row.names(gtex.results) <- referenceNames[c(4,9,10,11,12,13,14,15,16,17,18,19,20,21,40,43)]
+#names(psi.counts) <- referenceNames[c(4,9,10,11,12,13,14,15,16,17,18,19,20,21,40,43)]
+
+### For GTEx, w/o fib
+row.names(gtex.results) <- referenceNames[-c(23)]
+names(psi.counts) <- referenceNames[-c(23)]
+
+### For all GTEx results, rename the columns
 names(gtex.results) <- c('p0.05','p0.01','p0.001','p1e-4')
 
 ########################################################################
 ### Format results for Cytoscape
 ########################################################################
 
-### Add sample names column
+### Generate a new table to modify
 gtex.results.prep <- gtex.results
 
 ### Alphabetically sort
 gtex.results.prep <- gtex.results.prep[order(row.names(gtex.results.prep)),]
 
 ### Reshape the dataframe
-pSI.levels <- names(gtex.results)
-names(gtex.results.prep) <- rep('p-val',4)
+pSI.levels <- names(gtex.results) # Copy levels for latel assignment
+names(gtex.results.prep) <- rep('p-val',4)  # rename all columns as 'p-val' for easy reshaping
 results.for.cytoscape <- rbind(gtex.results.prep[4],gtex.results.prep[3],gtex.results.prep[2],gtex.results.prep[1])
-row.names(results.for.cytoscape) <- c(row.names(gtex.results.prep),seq(1,159))
+#row.names(results.for.cytoscape) <- c(row.names(gtex.results.prep),seq(1,150))
 
-### Add a label column
+### Add label columns
+sample.label <- rep(row.names(gtex.results.prep),4)
 pSI.labels <- c(rep(pSI.levels[4],nrow(gtex.results)),rep(pSI.levels[3],nrow(gtex.results)),rep(pSI.levels[2],nrow(gtex.results)),rep(pSI.levels[1],nrow(gtex.results)))
-results.for.cytoscape <- cbind(results.for.cytoscape,pSI.labels)
+results.for.cytoscape <- cbind(results.for.cytoscape, sample.label, pSI.labels)
 
 ### Log transform the data
 results.for.cytoscape[1] <- -log10(results.for.cytoscape[1])
 
+### Confirm output data set name
+input.file <- paste0("gtex-nf_",geneset,"_",length)
+#input.file <- 'gtex-ns_iht_250'
+print(input.file)
+
 ### Output
-write.csv(results.for.cytoscape,paste0("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/output for cytoscape/",input.file,strftime(Sys.time(),"%a%b%d%H%M"),".csv")); print(paste0("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/output for cytoscape/",input.file,strftime(Sys.time(),"%a%b%d%H%M"),".txt"))
+write.csv(results.for.cytoscape,paste0("z:/Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/output for cytoscape/",input.file,strftime(Sys.time(),"%a%b%d%H%M"),".csv")); print(paste0("z://Data/RNAseq HT neurons and tissue/Andrews_files/pSI_files/output for cytoscape/",input.file,strftime(Sys.time(),"%a%b%d%H%M"),".txt"))
 
 
 

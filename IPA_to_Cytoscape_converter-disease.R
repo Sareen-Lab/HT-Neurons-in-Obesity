@@ -93,10 +93,10 @@ for(pathway.num in 1:length) {
 ######################################################################################
 ### Output shared genes
 
-setwd(dir = "Z:/Data/C9-ALS MNs and bioenergetics/Mass Spec/Dhruv Sareen/Report 2015.02/Andrew/network files for cytoscape/")
+setwd(dir = "Z:/Data/zika/Andrew/For plotting/")
 names(outputNetwork) <- c("source","target","interaction","boolean attribute","string attribute","floating point attribute")
-write.table(outputNetwork,paste0("NET--C9-pathways-for_cytoscape_",substr(weekdays(Sys.Date()),1,4),"-",format(Sys.Date(),"%b-%d"),".txt"),row.names=FALSE,sep="\t",quote=FALSE)
-write.table(outputNode,paste0("NODE--C9-pathways_for_cytoscape_",substr(weekdays(Sys.Date()),1,4),"-",format(Sys.Date(),"%b-%d"),".txt"),row.names=FALSE,sep="\t",quote=FALSE)
+write.table(outputNetwork,paste0("NET--zika-pathways-for_cytoscape_",substr(weekdays(Sys.Date()),1,4),"-",format(Sys.Date(),"%b-%d"),".txt"),row.names=FALSE,sep="\t",quote=FALSE)
+write.table(outputNode,paste0("NODE--zika-pathways_for_cytoscape_",substr(weekdays(Sys.Date()),1,4),"-",format(Sys.Date(),"%b-%d"),".txt"),row.names=FALSE,sep="\t",quote=FALSE)
 
 ### Output alternate plot files
 write.table(output.gene.node, paste0("GENE-NODES--C9-pathways_for_cytoscape_",substr(weekdays(Sys.Date()),1,4),"-",format(Sys.Date(),"%b-%d"),".txt"),row.names=FALSE,sep="\t",quote=FALSE)

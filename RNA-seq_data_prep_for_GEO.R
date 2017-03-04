@@ -96,18 +96,22 @@ data.frame(names(df.TPM.normalized), row.names(df.metadata))
 ########################################################################
 ### Generate DE data
 
-### Subset raw data
-df.HT.raw <- df.counts.raw[grep("HT",df.metadata$Type)]
-df.iHT.raw <- df.counts.raw[grep("iHT",df.metadata$Group)]
-
 ### Subset metadata
-df.metadata.b <- df.metadata[!row.names(df.metadata.HT) == 'iHT_02iOBS',]
-df.metadata.HT <- df.metadata[df.metadata.b$Type == 'HT',]
-df.metadata.iHT <- df.metadata[df.metadata.b$Group == 'iHT',]
+df.metadata.b <- df.metadata[!row.names(df.metadata) == 'iHT_02iOBS',]
+df.metadata.HT <- df.metadata.b[df.metadata.b$Type == 'HT',]
+df.metadata.iHT <- df.metadata.b[df.metadata.b$Group == 'iHT',]
+
+### Subset raw data
+df.HT.raw <- df.counts.raw[row.names(df.metadata.HT)]
+df.iHT.raw <- df.counts.raw[row.names(df.metadata.iHT)]
+
+### Place OBS before CTR to ensure correct fold change direction
+df.iHT.raw <- df.iHT.raw[c(8:11,1:7)]
 
 ### Convert to integer matrixes
 matrix.HT.raw <- round(as.matrix(df.HT.raw[match(row.names(df.metadata.HT),names(df.HT.raw))]))
 matrix.iHT.raw <- round(as.matrix(df.iHT.raw[match(row.names(df.metadata.iHT),names(df.iHT.raw))]))
+matrix.iHT.raw <- round(as.matrix(df.iHT.raw))
 
 head(matrix.HT.raw)
 head(matrix.iHT.raw)
@@ -117,7 +121,7 @@ de.HT <- DESeqDataSetFromMatrix(countData = matrix.HT.raw, colData = df.metadata
 de.iHT <- DESeqDataSetFromMatrix(countData = matrix.iHT.raw, colData = df.metadata.iHT, design = ~ Disease)
 
 # Generate results
-(de.HT <- DESeq(deHT))
+(de.HT <- DESeq(de.HT))
 (results.de.HT <- results(de.HT))
 df.de.HT <- as.data.frame(results.de.HT)
 names(df.de.HT)[2] <- 'log2FC'
@@ -133,18 +137,36 @@ names(df.de.iHT) <- paste0('Obs-v-Ctr_',names(df.de.iHT))
 ### Sanity check
 
 ### HT sanity check
-test <- 
+
 ### Subset for low p-value
-low.p.HT <- which(df.de.HT$`iHT-v-aHT_padj`<0.0001)
+low.p.HT <- which(df.de.HT$`iHT-v-aHT_padj`<0.00001)
 test <- df.de.HT[low.p.HT,]
 test.exprs <- df.HT.raw[low.p.HT,]
 (nrow(test))
 
-### Compare stats
+### Compare means
 HT.mean <- apply(test.exprs,1,mean)
 iHT.mean <- apply(test.exprs[1:11],1,mean)
 aHT.mean <- apply(test.exprs[13:17],1,mean)
-data.frame(test$`iHT-v-aHT_baseMean`,HT.mean,iHT.mean,aHT.mean)
+#data.frame(test$`iHT-v-aHT_baseMean`,HT.mean,iHT.mean,aHT.mean)[1:24,]
+
+### Compare fold changes
+data.frame(iHT.mean,aHT.mean,HT.mean,test$`iHT-v-aHT_baseMean`,test$`iHT-v-aHT_log2FC`,log2(iHT.mean/aHT.mean))[1:20,]
+### PASS: Sign and magnitude match results when iHT divided by aHT
+
+### iHT sanity check
+
+### Subset for low p-value
+low.p.iHT <- which(df.de.iHT$`Obs-v-Ctr_padj`<0.0001)
+test <- df.de.iHT[low.p.iHT,]
+test.exprs <- df.iHT.raw[low.p.iHT,]
+(nrow(test))
+
+### Compare means
+iHT.mean <- apply(test.exprs,1,mean)
+obs.mean <- apply(test.exprs[1:4],1,mean)
+ctr.mean <- apply(test.exprs[5:11],1,mean)
+data.frame(obs.mean,ctr.mean,iHT.mean,test$`Obs-v-Ctr_baseMean`,test$`Obs-v-Ctr_log2FC`,log2(obs.mean/ctr.mean))[1:24,]
 
 ########################################################################
 ### Formatting before joining
@@ -169,17 +191,20 @@ df.composite <- addGene(df.composite)
 df.composite <- addDescription(df.composite)
 names(df.composite)[3] <- 'Description'
 
+### Generate Differential expression table
+df.diff.ex <- df.composite
+
 ### Add Differential Expression 1
-df.composite <- cbind(df.composite,df.de.HT)
+df.diff.ex <- cbind(df.diff.ex,df.de.HT)
 
 ### Add differential Expression 2
-df.composite <- cbind(df.composite,df.de.iHT)
+df.diff.ex <- cbind(df.diff.ex,df.de.iHT)
 
-### Add Normalized values
-df.composite <- cbind(df.composite,df.TPM.normalized)
+### Save normalized
+df.normalized <- cbind(df.composite,df.TPM.normalized)
 
-### Add raw values
-df.composite <- cbind(df.composite,df.counts.raw)
+### Save raw
+df.raw <- cbind(df.composite,df.counts.raw)
 
 ########################################################################
 ### Output
@@ -187,124 +212,32 @@ df.composite <- cbind(df.composite,df.counts.raw)
 ### Save expression table
 setwd("Z:/Data/RNAseq HT neurons and tissue/Andrews_files/")
 
-write.csv(df.composite,"Full processed data for GEO-HT RNAseq.csv", row.names = FALSE)
+write.csv(df.diff.ex,"Sareen-HT-2017 data for GEO - Diff-expr.csv", row.names = FALSE)
+write.csv(df.normalized,"Sareen-HT-2017 data for GEO - TPM normalized.csv", row.names = FALSE)
+write.csv(df.raw,"Sareen-HT-2017 data for GEO - Raw read counts.csv", row.names = FALSE)
+
 
 ########################################################################
-### Sanity check
+### Minor formatting fixes
 
-test <- head(df.composite,20)
-head(test)
+file.names <- read.csv('Z:/Data/RNAseq HT neurons and tissue/TEMP/file-names-temp.csv', header = FALSE)[,1]
 
+#reformatted.file.names <- data.frame('first' = character(), 'second' = character(), 'third' = character(), 'fourth' = character(), stringsAsFactors = FALSE)
+reformatted.file.names <- matrix(1,1,4)
 
-### Subset for low p-value
-low.p.HT <- which(df.composite$`iHT-v-aHT_padj`<0.0001)
-test <- df.composite[low.p.HT,]
-test.b <- test[36:54]
+for (sample in 1:20) {
+  first.row <- (sample - 1)*4 + 1
+  first = as.character(file.names[first.row])
+  second = as.character(file.names[first.row +1])
+  third = as.character(file.names[first.row + 2])
+  fourth = as.character(file.names[first.row + 3])
+  new.row <- c(first, second, third, fourth)
+  #print(new.row)
+  reformatted.file.names <- rbind(reformatted.file.names, new.row)
+}
 
-### Sanity check HT (iHT v aHT)
-iHT <- apply(test.b[1:12],1,mean)
-aHT <- apply(test.b[15:19],1,mean)
-HT.mean <- apply(test.b[c(1:11,15:19)],1,mean)
-log2iHT.aHT <- log2(iHT/aHT)
-data.frame(iHT,aHT,log2iHT.aHT,test$'iHT-v-aHT_log2FC',2^(test$'iHT-v-aHT_log2FC'))
+df.reformatted.file.names <- data.frame(reformatted.file.names)[2:21,]
 
-### Sanity check OBS v CTR
-CTR <- apply(test.b[1:7],1,mean)
-OBS <- apply(test.b[8:11],1,mean)
-log2CTR.OBS <- log2(OBS/CTR)
-data.frame(CTR,OBS,log2CTR.OBS,test$'Obs-v-Ctr_log2FC')
+output <- df.reformatted.file.names[c(1,12,14,15,16,17,18,19,20,2,3,4,5,6,7,8,9,10,11,13),]
 
-###############################################################################
-###############################################################################
-
-########################################################################
-### Subsetting
-########################################################################
-
-# Raw
-iHTcounts <- counts[grep("iHT",metaData$Group)]
-df.iHT.raw <- df.counts.raw[grep("iHT",metaData$Group)]
-obsHTcounts <- counts[grep("OBS",metaData$Disease)]
-ctrHTcounts <- counts[intersect(grep("iHT",metaData$Group),grep("CTR",metaData$Disease))]
-
-########################################################################
-### Filtering
-########################################################################
-
-metaData.iHT <- metaData[metaData$Group == 'iHT',]
-metaData.iHT <- metaData.iHT[c(1,2,3,5,6,7,8,9,10,11),]
-countMatrix <- as.matrix(df.HT.raw[match(row.names(df.metadata.HT),names(df.HT.raw))])
-
-countMatrix <- round(countMatrix)
-head(countMatrix)
-
-metaData.selected <- metaData.iHT
-#metaData.selected <- metaData.iHT.f
-
-######################################################################################
-### Perform DESeq2 calculation
-######################################################################################
-
-# Run DESeq
-deHT <- DESeqDataSetFromMatrix(countData = countMatrix, colData = metaData.selected, design = ~ Disease)
-
-# Generate results
-(deHT <- DESeq(deHT))
-(res <- results(deHT))
-
-resOrdered <- res[order(res$padj),]
-summary(res)
-sum(res$padj < 0.1, na.rm=TRUE)
-res05 <- results(deHT, alpha=0.05)
-summary(res05)
-sum(res05$padj < 0.05, na.rm=TRUE)
-
-#mean(unlist(iHTcounts[2,][metaData.iHT$Disease=='OBS']))
-#mean(unlist(iHTcounts[2,][metaData.iHT$Disease=='CTR']))
-#mean(unlist(iHTcounts[2,]))
-
-#iHTcounts[1,]
-#iHTcounts[1,][metaData.iHT$Disease=='CTR']
-#iHTcounts[1,][metaData.iHT$Disease=='OBS']
-
-
-### Plotting
-plotMA(res, main="DESeq2", ylim=c(-2,2))
-plotCounts(deHT, gene=which.min(res$padj), intgroup="Disease")
-
-
-### Format for output
-resultsDF <- as.data.frame(resOrdered)
-
-### Fold change cutoffs
-logFoldChange <- resultsDF$log2FoldChange
-absLFC <- abs(logFoldChange)
-lowVals <- absLFC<0.33
-lowPvals <- resultsDF$padj>0.1
-logFoldChange[lowVals] <- 0
-logFoldChange[is.na(logFoldChange)] <- 0
-logFoldChange[lowPvals] <- 0
-resultsDF$log2FoldChange <- logFoldChange
-
-# Reorder orginal counts
-#reorderedHT <- iHTcounts[match(row.names(resultsDF),row.names(iHTcounts)),]
-#reorderedOBS <- obsHTdata2[match(row.names(resultsDF),row.names(obsHTdata2)),]
-#reorderedCTR <- ctrHTdata2[match(row.names(resultsDF),row.names(ctrHTdata2)),]
-
-#head(reorderedOBS)
-#head(reorderedCTR)
-head(resultsDF)
-#head(reorderedHT)
-resultsDF <- addGene(resultsDF)
-resultsDF <- addDescription(resultsDF)
-names(resultsDF) <- c("baseMean","log2FoldChange", "lfcSE","stat","pvalue","padj","Gene","Descrip")
-
-#outputDataFrame <- data.frame(row.names(resultsDF),reorderedOBS$median,reorderedCTR$median,reorderedOBS$sd,reorderedCTR$sd,resultsDF$log2FoldChange,resultsDF$padj)
-outputDataFrame <- data.frame(row.names(resultsDF),resultsDF$Gene,resultsDF$log2FoldChange,resultsDF$padj,resultsDF$Descrip)
-names(outputDataFrame) <- c("Ensembl-ID","Gene","Log2FoldChange","p-adj","Description")
-
-
-write.table(as.data.frame(outputDataFrame[1:8000,]), file="z://Data/RNAseq HT neurons and tissue/2nd rerun/DE_genes_ANDREW/Obs_iHT_vs_Ctr_iHT--8000.txt",sep="\t",row.names = FALSE)
-
-
-
+write.csv(output,"z:/Data/RNAseq HT neurons and tissue/Andrews_files/TEMP.csv")

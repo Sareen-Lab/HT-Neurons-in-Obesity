@@ -29,7 +29,7 @@ spearman.calc <- function(sample, reference.input) {           # Calculate the s
     sample.3 <- sample.2[genes.present.in.ref, , drop = FALSE]     # Reorder sample to match reference
     spearman.input <- cbind(sample.3, ref.tissue.data.2)           # Bind sample and reference
     result <- rcorr(as.matrix(spearman.input), type = 'spearman')[[1]] # Perform spearman calculation
-    result <- round(result[2] * 100, 1)                        # Round result
+    result <- round(result[2], 5)                        # Round result
     spearman.results[tissue,] <- result                        # Add to results table
   }
   return(spearman.results)
@@ -67,19 +67,16 @@ plot.tissue.match.boxplot <- function(spearman.results, title) {
   spearman.melt.color <- melt(spearman.t)                               # Melt again
   spearman.melt$color <- spearman.melt.color$value                      # Copy repeating values as 'color column to main df
   
-  g <- ggplot(data = spearman.melt, aes(x = ref, y = -value, fill = color)) +
-    geom_boxplot() +
+  g <- ggplot(data = spearman.melt, aes(x = ref, y = value)) +
+    geom_boxplot(fill = 'red') +
     coord_flip() +
-    scale_fill_gradientn(colors = c('red','orange','yellow','white')) +
-    scale_y_continuous(limits = c(-100,-30), position = 'right') +
-    theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
-          legend.position = 'none', panel.background = element_rect(fill = 'grey97'),
+    scale_y_continuous(limits = c(0.49,0.76), position = 'right', breaks = c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75), labels = c('0.5','','0.6','','0.7',''), expand = c(0,0)) +
+    theme(axis.ticks.y = element_blank(),
+          legend.position = 'none', panel.background = element_rect(fill = 'grey99',size = 2, linetype = 'solid', color = 'black'),
           plot.title = element_text(size = 14, face = 'bold', margin = margin(5,0,5,0), hjust = 0.5)) +
-    labs(title = row.names(spearman.results)[1],
-         x = '',
-         y = title) +
-    geom_text(data = spearman.for.color, aes(x = ref, y = -color.val+8, fill = color.val, label = ref), 
-              hjust = 0)
+    labs(title = title,
+         x = 'Reference Tissues from GTEx',
+         y = 'Spearman correlation') #+ geom_text(data = spearman.for.color, aes(x = ref, y = color.val-0.25, label = ref), hjust = 0)
   return(g)
 }
 ### Plot multiplot with all five filter levels
@@ -118,6 +115,13 @@ reference.transcriptomes <- read.csv('Z:/Data/Andrew/reference_data/gtex/individ
 ### iPSC and adult HT data
 TPMdata <- read.csv("z://Data/RNAseq HT neurons and tissue/Andrews_files/20160317_Sareen_rerun-29299281.tpm.csv", row.names=1)
 
+### Reference names, formatted
+referenceNames <- c("Adipose, subcutaneous","Adipose, omentum","Adrenal gland","Aorta","Coronary artery","Tibial artery","Bladder","Amygdala","Anteriror cingulate cortex","Caudate nucleus",
+                    "Cerebellar hemisphere","Cerebellum","Cortex","Frontal cortex BA9","Hippocampus","Hypothalamus","Nucleus accumbens","Putamen",
+                    "Spinal cord","Substantia nigra","Mammary","Lymphocyte","Fibroblast","Ectocervix","Endocervix","Colon, sigmoid","Colon, transverse","Gastroesophageal junction","Esophagus, mucosa",
+                    "Esophagus, muscularis","Fallopian tube","Heart, Atrial","Heart, left ventricle","Kidney","Liver","Lung","Salivary gland","Skeletal muscle","Tibial nerve","Ovary","Pancreas",
+                    "Pituitary","Prostate","Skin, sun-hidden","Skin, sun-exposed","Small intestine","Spleen","Stomach","Testis","Thyroid","Uterus","Vagina","Whole blood")
+
 ########################################################################
 ### Format
 
@@ -127,6 +131,12 @@ ref.loose <- gtex.low.sd.loose[2:ncol(gtex.low.sd.loose)]
 ref.neutral <- gtex.low.sd.neutral[2:ncol(gtex.low.sd.neutral)]
 ref.tight <- gtex.low.sd.tight[2:ncol(gtex.low.sd.tight)]
 ref.supertight <- gtex.low.sd.supertight[2:ncol(gtex.low.sd.supertight)]
+
+### Rename the references
+names(ref.full) <- referenceNames
+
+### Filter references to relevant tissues
+ref.final <- ref.full[-c(1,2,4,5,7,22,23,24,25,26,27,28,29,30,31,34,35,36,43,44,45,48,49,51,53)]
 
 ### Define df of iHT
 iHT.sample.list <- TPMdata[c(1,2,3,4,11,14,15,16,17,18,19,20)]
@@ -172,10 +182,13 @@ samples <- TPMdata[c(18,19,20)]
 print(str(samples))
 
 ### Select a reference set (based on filter level)
-names(references.list)
-ref.set.num = 1
-reference.input <- references.list[[ref.set.num]]              # Specify current reference list and its name
-(reference.set.name <- names(references.list)[ref.set.num])    # Declare the name of the rererence filter set
+reference.input <- ref.final
+#names(references.list)
+#ref.set.num = 1
+#reference.input <- references.list[[ref.set.num]]              # Specify current reference list and its name
+#(reference.set.name <- names(references.list)[ref.set.num])    # Declare the name of the rererence filter set
+
+
 
 ### Define title
 (title <- paste(substr(names(samples)[1],1,3), 'vs', reference.set.name))
@@ -183,14 +196,56 @@ reference.input <- references.list[[ref.set.num]]              # Specify current
 ### Calculate spearman corr. for all samples in group against a chosen reference
 spearman.results <- spearman.calc.for.multiple.samples(samples, reference.input)
 
+### Normalize values by mean
+spearman.means <- apply(spearman.results[1,], 2, mean)
+max.mean <- median(spearman.means)
+spearman.scalars <- max.mean / spearman.means
+spearman.results.scaled <- as.data.frame(sweep(as.matrix(spearman.results), MARGIN = 2, spearman.scalars, `*`))
+
+### Save the Spearman results by sample type
+iHT.spearman.scaled <- spearman.results.scaled
+aHT.spearman.scaled <- spearman.results.scaled
+
+### Find the average order
+spearman.results.for.ordering <- cbind(iHT.spearman.scaled[1:10],aHT.spearman.scaled[row.names(iHT.spearman.scaled),])
+spearman.results.for.ordering$mean <- apply(spearman.results.for.ordering, 1, mean)
+order <- order(spearman.results.for.ordering$mean, decreasing = TRUE)
+spearman.results.for.ordering <- spearman.results.for.ordering[order,]
+tissue.order <- row.names(spearman.results.for.ordering)
+
+#aHT.spearman.scaled.ordered <- aHT.spearman.scaled[tissue.order,]
+
 ### Generate a single plot for a single reference set
-a <- plot.tissue.match.boxplot(spearman.results, title)
+title <- 'iHT'
+(i <- plot.tissue.match.boxplot(iHT.spearman.scaled[tissue.order,], title))
+(i <- plot.tissue.match.boxplot(iHT.spearman.scaled, title))
 
-g
-a
-i
-m
+title <- 'aHT'
+(a <- plot.tissue.match.boxplot(aHT.spearman.scaled[tissue.order,], title))
+(a <- plot.tissue.match.boxplot(aHT.spearman.scaled, title))
 
+### Output plots
+setwd("z:/Uthra/HT paper/")
+png(filename='iHT_boxplot.png', 
+    type="cairo",
+    units="in", 
+    width=6, 
+    height=6, 
+    pointsize=12, 
+    res=120)
+print(i)
+dev.off()
+
+setwd("z:/Uthra/HT paper/")
+png(filename='aHT_boxplot.png', 
+    type="cairo",
+    units="in", 
+    width=6, 
+    height=6, 
+    pointsize=12, 
+    res=120)
+print(a)
+dev.off()
 
 ### Plot all results on one plot
 #spearman.results.list[[length(spearman.results.list)+1]] <- spearman.results

@@ -1,5 +1,9 @@
 ### RNA Seq preliminary analysis, Andrew R Gross, 2016-05-16
 ### This script is intended to upload normalized expression data and plot a variety of features in order to make general assessments of the data
+### This script reads in a list of genes from Locke et al and a list of disregulated genes from our own RNA-seq results.  It plots the genes based on their fold changes and pvalues and highlights
+### The genes that are shared with Locke.
+### Input: RNA-seq data; list of lock genes;
+### Outout: Scatterplots
 
 ########################################################################
 ### Header

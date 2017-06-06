@@ -37,6 +37,7 @@ spearman.calc <- function(sample, reference.input) {           # Calculate the s
 spearman.calc.for.multiple.samples <- function(samples, reference.input) {
   ### Initialize empty results table
   spearman.results <- data.frame(rep(0,ncol(reference.input))) # Generate empty results table
+  names(spearman.results) <- names(samples)[1]                 # Name empty results table
   row.names(spearman.results) <- names(reference.input)        # Name empty results table
   
   ### Calculate Spearman correlations

@@ -15,8 +15,8 @@ library(Hmisc)
 library(grid)
 library(gridExtra)
 
-ensembl = useMart(host="www.ensembl.org",dataset="hsapiens_gene_ensembl")
-ensembl = useMart(host='www.ensembl.org',biomart='ENSEMBL_MART_ENSEMBL')
+#ensembl = useMart(host="www.ensembl.org",dataset="hsapiens_gene_ensembl")
+#ensembl = useMart(host='www.ensembl.org',biomart='ENSEMBL_MART_ENSEMBL')
 ensembl = useMart(host='www.ensembl.org',biomart='ENSEMBL_MART_ENSEMBL',dataset="hsapiens_gene_ensembl")
 listMarts(host="www.ensembl.org")
 listDatasets(ensembl)
@@ -113,6 +113,9 @@ metaData <- read.csv("z://Data/RNAseq HT neurons and tissue/2nd rerun/samples.cs
 # Import genes of interest
 uthras.genes <- read.csv("z://Data/RNAseq HT neurons and tissue/Andrews_files/Uthras_genes_of_interest.txt")
 
+# Define more genes of interest
+SNP.genes <- read.csv('Z://Uthra/HT paper/HT paper final figures + text/Rebuttal/Whole exome analysis/snp_genes_of_interest.txt')
+
 # Import housekeeping genes
 housekeeping.genes <- read.csv("z://Data/RNAseq HT neurons and tissue/Andrews_files/Housekeeping_genes.txt")
 
@@ -159,6 +162,8 @@ deseq.data <- convertIDs(deseq.data)
 
 genes.of.interest <- uthras.genes           ;title <- "Uthra's Genes of Interest"
 
+genes.of.interest <- SNP.genes              ;title <- "SNP-associated Genes"
+
 genes.of.interest <- housekeeping.genes     ;title <- "Housekeeping Genes"
 
 genes.of.interest <- ht.genes_0.0001.df     ;title <- "Hypothalamus genes, pSI = 1e-4"
@@ -177,12 +182,17 @@ row.names(genes.df) <- genes.of.interest$Gene  # Replace the row names with the 
 genes.df <- genes.df[complete.cases(genes.df),]
 
 ### Subsample for DEseq
-gene.positions <- match(genes.of.interest$Ensembl.ID,row.names(deseq.data))  # Declare the row numbers in the rnaseq data which correspond to genes in or list of genes of interest
-genes.df <- deseq.data[gene.positions,]  # Make a dataframe containing just the rows of RNAseq data corresponding to genes of interest
+#gene.positions <- match(genes.of.interest$Ensembl.ID,row.names(deseq.data))  # Declare the row numbers in the rnaseq data which correspond to genes in or list of genes of interest
+#genes.df <- deseq.data[gene.positions,]  # Make a dataframe containing just the rows of RNAseq data corresponding to genes of interest
 ### Rename the rows with genes
-row.names(genes.df) <- genes.of.interest$Gene  # Replace the row names with the gene names
-genes.df <- genes.df[complete.cases(genes.df),]
+#row.names(genes.df) <- genes.of.interest$Gene  # Replace the row names with the gene names
+#genes.df <- genes.df[complete.cases(genes.df),]
 
+########################################################################
+### Subsample Columns
+########################################################################
+
+genes.df <- genes.df[-c(1,2,3,4,5,18,19)]
 
 ########################################################################
 ### Normalize (optional)
@@ -197,12 +207,24 @@ for(column in 1:(ncol(dataframe)-2)){
   dataframe[column] <- round(dataframe[column]/correction.factor,2)
 }
 
-genes.df <- dataframe[1:(ncol(dataframe)-2)]
+#genes.df <- dataframe[1:(ncol(dataframe)-2)]
 
-#for (column in 1:13) {
-#  barplot.df[column] <- round(barplot.df[column]*1000/barplot.df$GAPDH,3)
-#}
 
+########################################################################
+### Calculate p-values (optional)
+########################################################################
+
+p.values <- c()
+for(row.num in 1:nrow(genes.df)) {
+  row <- genes.df[row.num,]
+  CTR.vector <- row[1:7]
+  OBS.vector <- row[8:12]
+  p.value <- t.test(CTR.vector, OBS.vector)[3][[1]]
+  p.values[length(p.values)+1] <- p.value
+}
+p.values <- round(p.values, 3)
+p.values <- paste(as.character(p.values), collapse = ', ')
+title <- paste(title, '-- p.values: ', p.values)
 ########################################################################
 ### Prepare plot data
 ########################################################################
@@ -228,11 +250,14 @@ box.list <- generate.boxplots(plot.df)
 
 plot.list <- bar.list
 
-plot.list <- box.list[13:24]
+plot.list <- box.list#[13:24]
 
 ########################################################################
 ### Display tiled plots
 ########################################################################
+
+(tiled.figure <- grid.arrange(plot.list[[1]],plot.list[[2]],plot.list[[3]],plot.list[[4]],plot.list[[5]],plot.list[[6]],
+                              ncol = 3, top = title))
 
 (tiled.figure <- grid.arrange(plot.list[[1]],plot.list[[2]],plot.list[[3]],plot.list[[4]],plot.list[[5]],plot.list[[6]],
                               plot.list[[7]],plot.list[[8]],plot.list[[9]],plot.list[[10]],plot.list[[11]],plot.list[[12]],
